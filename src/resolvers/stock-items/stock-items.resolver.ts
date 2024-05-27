@@ -9,6 +9,7 @@ export class StockItemResolver {
 
   @Query((returns) => [StockItem])
   async stockItems(): Promise<StockItemModel[]> {
+    console.log("Listing stock items...");
     return this.service.listStockItems();
   }
 }
