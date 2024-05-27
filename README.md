@@ -51,6 +51,17 @@ igc pipeline
 
 To get started building this application locally, you can either run the application natively or use the [IBM Cloud Developer Tools](https://cloud.ibm.com/docs/cli?topic=cloud-cli-getting-started) for containerization and easy deployment to IBM Cloud.
 
+### Configure Environment Variables
+
+The application uses environment variables to configure the application. The following environment variables are used:
+
+```bash
+SERVICE_URL=http://localhost:8080
+KEYCLOAK_AUTH_SERVER_URL=http://localhost:8000
+KEYCLOAK_REALM=patterns
+KEYCLOAK_CLIENT_ID=bff
+KEYCLOAK_CLIENT_SECRET=<secret>
+```
 #### Native Application Development
 
 Install the latest [Node.js](https://nodejs.org/en/download/) 6+ LTS version.
