@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { StockItemsApi } from './stock-items.api';
 import { StockItemModel } from '../../models';
 import { get } from 'superagent';
 import { ConfigService } from '@nestjs/config';
+import * as CircuitBreaker from 'opossum';
 
 class StockItem {
     'id'?: string;
@@ -15,20 +16,33 @@ class StockItem {
 
 @Injectable()
 export class StockItemsService implements StockItemsApi {
-    constructor(private configService: ConfigService) { }
+    private readonly logger = new Logger(StockItemsService.name);
+    private readonly breaker: CircuitBreaker;
+
+    constructor(private configService: ConfigService) {
+        const timeout = this.configService.get<number>('CIRCUIT_BREAKER_TIMEOUT', 3000);
+
+        this.breaker = new CircuitBreaker(this.fetchStockItems.bind(this), {
+            timeout,
+            errorThresholdPercentage: 50,
+            resetTimeout: 10000,
+        });
+
+        this.breaker.on('open', () => this.logger.warn('Circuit breaker OUVERT — service indisponible'));
+        this.breaker.on('halfOpen', () => this.logger.log('Circuit breaker SEMI-OUVERT — test en cours'));
+        this.breaker.on('close', () => this.logger.log('Circuit breaker FERMÉ — service rétabli'));
+        this.breaker.fallback(() => []);
+    }
 
     async listStockItems(): Promise<StockItemModel[]> {
+        const items = await this.breaker.fire() as StockItem[];
+        return this.mapStockItems(items);
+    }
+
+    private async fetchStockItems(): Promise<StockItem[]> {
         const serviceUrl = this.configService.get<string>('SERVICE_URL');
-        return new Promise((resolve, reject) => {
-            get(`${serviceUrl}/stock-items`)
-                .set('Accept', 'application/json')
-                .then(res => {
-                    resolve(this.mapStockItems(res.body));
-                })
-                .catch(err => {
-                    reject(err);
-                });
-        });
+        const res = await get(`${serviceUrl}/stock-items`).set('Accept', 'application/json');
+        return res.body;
     }
 
     mapStockItems(data: StockItem[]): StockItemModel[] {
